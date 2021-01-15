@@ -1,13 +1,13 @@
 import sys
 import sqlite3
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets
 
 type_list = ("Нормальный", "Боевой", "Летающий", "Ядовитый", "Земляной", "Каменный", "Насекомый", "Призрачный",
              "Стальной", "Огненный", "Водный", "Травяной", "Электрический", "Психический", "Ледяной", "Драконий",
              "Тёмный", "Волшебный")
 
 
-class ItemExictsWindow(QtWidgets.QDialog):
+class ItemExistsWindow(QtWidgets.QDialog):
     def __init__(self, parent):
         QtWidgets.QWidget.__init__(self, parent)
         self.setWindowTitle("Существующий предмет")
@@ -308,7 +308,7 @@ class BaseWindow(QtWidgets.QWidget):
 
     def double_dialogue(self):
         self.blockSignals(True)
-        dialog_window = ItemExictsWindow(parent=self)
+        dialog_window = ItemExistsWindow(parent=self)
         dialog_window.exec_()
         if dialog_window.update:
             return True
