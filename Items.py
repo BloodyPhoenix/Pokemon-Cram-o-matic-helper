@@ -95,10 +95,12 @@ class MayBeCraftedLayout(QtWidgets.QWidget):
         self.grid.addLayout(NamedWidget(title="Тип предмета:", content=self.item_type), 0, 1)
         self.min_value = QtWidgets.QSpinBox()
         self.min_value.setMinimum(1)
+        self.min_value.setMaximum(141)
         self.min_value.valueChanged.connect(self.change_maximum)
         self.max_value = QtWidgets.QSpinBox()
         self.max_value.setValue(10)
         self.max_value.valueChanged.connect(self.change_minimum)
+        self.max_value.setMaximum(150)
         min_max = QtWidgets.QVBoxLayout()
         min_max.addLayout(NamedWidget(title="Минимум:", content=self.min_value))
         min_max.addLayout(NamedWidget(title="Максимум:", content=self.max_value))
@@ -299,8 +301,13 @@ class BaseWindow(QtWidgets.QWidget):
     def check_double(self, name, table_name):
         cursor = self.connection.cursor()
         name = name
-        sql = f"SELECT EXISTS (SELECT * FROM {table_name} WHERE name = \"{name}\")"
-        cursor.execute(sql)
+        if self.tabs.currentIndex() == 1:
+            item_type = self.tab_may_be_crafted.item_type.currentText()
+            sql = f"SELECT EXISTS (SELECT * FROM {table_name} WHERE name = \"{name}\" AND item_type = \"{item_type}\")"
+            cursor.execute(sql)
+        else:
+            sql = f"SELECT EXISTS (SELECT * FROM {table_name} WHERE name = \"{name}\")"
+            cursor.execute(sql)
         if not 0 in cursor.fetchone():
             return True
         else:
