@@ -316,7 +316,6 @@ class BaseWindow(QtWidgets.QWidget):
             return False
 
 
-
 app = QtWidgets.QApplication(sys.argv)
 window = BaseWindow()
 window.show()
