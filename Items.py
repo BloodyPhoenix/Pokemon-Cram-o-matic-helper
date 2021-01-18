@@ -98,21 +98,15 @@ class MayBeCraftedLayout(QtWidgets.QWidget):
         self.grid.addLayout(NamedWidget(title="Тип предмета:", content=self.item_type), 0, 1)
         self.min_value = QtWidgets.QSpinBox()
         self.min_value.setMinimum(1)
-        self.min_value.setMaximum(141)
+        self.min_value.setMaximum(151)
         self.min_value.valueChanged.connect(self.change_maximum)
         self.max_value = QtWidgets.QSpinBox()
         self.max_value.setValue(20)
         self.max_value.valueChanged.connect(self.change_minimum)
-        self.max_value.setMaximum(150)
-        min_max = QtWidgets.QVBoxLayout()
-        min_max.addLayout(NamedWidget(title="Минимум:", content=self.min_value))
-        min_max.addLayout(NamedWidget(title="Максимум:", content=self.max_value))
+        self.max_value.setMaximum(160)
         self.max_value.setMinimum(0)
-        self.grid.addLayout(NamedWidget(title="Нужно очков для создания:", content=min_max), 1, 0)
-        self.price = QtWidgets.QSpinBox()
-        self.price.setMinimum(0)
-        self.price.setMaximum(999999)
-        self.grid.addLayout(NamedWidget(title="Цена при продаже в магазине:", content=self.price), 1, 1)
+        self.grid.addLayout(NamedWidget(title="Минимум очков для создания:", content=self.min_value), 1, 0)
+        self.grid.addLayout(NamedWidget(title="Максимум очков для создания:", content=self.max_value), 1, 1)
         self.setLayout(self.grid)
 
     def change_maximum(self):
@@ -161,6 +155,7 @@ class FixedRecepieLayout(QtWidgets.QWidget):
 
 class BaseWindow(QtWidgets.QWidget):
     def __init__(self, parent=None):
+        self.connection = sqlite3.connect("Pokecraft_Database.db")
         QtWidgets.QWidget.__init__(self, parent)
         self.setWindowTitle("Создание предмета")
         self.resize(550, 450)
@@ -182,7 +177,6 @@ class BaseWindow(QtWidgets.QWidget):
         self.setLayout(main_layout)
 
     def write_into_base(self):
-        self.connection = sqlite3.connect("Pokecraft_Database.db")
         with self.connection:
             if self.tabs.currentIndex() == 0:
                 self.for_craft_update()
@@ -191,18 +185,18 @@ class BaseWindow(QtWidgets.QWidget):
             elif self.tabs.currentIndex() == 2:
                 self.fixed_recipe_update()
             else:
-                windowWrong = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Ошибка",
+                window_wrong = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Ошибка",
                                                     "Неверный индекс вкладки", buttons=QtWidgets.QMessageBox.Ok,
                                                     parent=self)
-                windowWrong.exec()
+                window_wrong.exec()
 
     def for_craft_update(self):
         name = self.tab_for_craft.name.text()
         if len(name) < 4:
-            windowWrong = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Ошибка",
+            window_wrong = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Ошибка",
                                                 "Заполнены не все поля", buttons=QtWidgets.QMessageBox.Ok,
                                                 parent=self)
-            windowWrong.exec()
+            window_wrong.exec()
         item_type = self.tab_for_craft.item_type.currentText()
         value = self.tab_for_craft.value.value()
         sell_price = self.tab_for_craft.price.value()
@@ -232,36 +226,34 @@ class BaseWindow(QtWidgets.QWidget):
     def may_be_crafted_update(self):
         name = self.tab_may_be_crafted.name.text()
         if len(name) < 5:
-            windowWrong = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Ошибка",
+            windo_wrong = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Ошибка",
                                                 "Заполнены не все поля", buttons=QtWidgets.QMessageBox.Ok,
                                                 parent=self)
-            windowWrong.exec()
+            windo_wrong.exec()
         item_type = self.tab_may_be_crafted.item_type.currentText()
         min_value = self.tab_may_be_crafted.min_value.value()
         max_value = self.tab_may_be_crafted.max_value.value()
         sell_price = self.tab_may_be_crafted.price.value()
         cursor = self.connection.cursor()
         sql = """CREATE TABLE IF NOT EXISTS Products (name varchar(20), item_type varchar(15), min_value int,
-              max_value int, sell_price int)"""
+              max_value int)"""
         cursor.execute(sql)
         self.connection.commit()
         if self.check_double(name, "Products"):
             if self.double_dialogue():
-                sql = f"UPDATE Products SET min_value = {min_value}, max_value = {max_value}, sell_price = {sell_price}" \
-                      f"WHERE name = \"{name}\""
+                sql = f"UPDATE Products SET min_value = {min_value}, max_value = {max_value}, WHERE name = \"{name}\""
                 cursor.execute(sql)
                 self.connection.commit()
                 self.tab_may_be_crafted.reset()
         if self.check_value():
             if self.double_dialogue():
-                sql = f"UPDATE Products SET name = \"{name}\", sell_price = {sell_price}" \
-                      f"WHERE min_value = {min_value} AND max_value = {max_value}"
+                sql = f"UPDATE Products SET name = \"{name}\", WHERE min_value = {min_value} AND max_value = {max_value}"
                 cursor.execute(sql)
                 self.connection.commit()
                 self.tab_may_be_crafted.reset()
         else:
-            sql = f"INSERT INTO Products (name, item_type, min_value, max_value, sell_price)" \
-                  f"VALUES (\"{name}\", \"{item_type}\", {min_value}, {max_value}, {sell_price})"
+            sql = f"INSERT INTO Products (name, item_type, min_value, max_value)" \
+                  f"VALUES (\"{name}\", \"{item_type}\", {min_value}, {max_value})"
             cursor.execute(sql)
             self.connection.commit()
             self.tab_may_be_crafted.reset()
@@ -336,7 +328,7 @@ class BaseWindow(QtWidgets.QWidget):
             sql = f"SELECT EXISTS (SELECT * FROM Products WHERE min_value = {min_value} AND " \
                   f"max_value = {max_value} AND item_type = \"{item_type}\")"
             cursor.execute(sql)
-        if 0 not in cursor.fetchone()
+        if 0 not in cursor.fetchone():
             return True
         else:
             return False
