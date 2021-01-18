@@ -120,8 +120,7 @@ class MayBeCraftedLayout(QtWidgets.QWidget):
     def reset(self):
         self.name.clear()
         self.min_value.setValue(1)
-        self.max_value.setValue(10)
-        self.price.setValue(0)
+        self.max_value.setValue(20)
 
 
 class FixedRecepieLayout(QtWidgets.QWidget):
@@ -196,6 +195,7 @@ class BaseWindow(QtWidgets.QWidget):
                                                 "Заполнены не все поля", buttons=QtWidgets.QMessageBox.Ok,
                                                 parent=self)
             window_wrong.exec()
+            return
         item_type = self.tab_for_craft.item_type.currentText()
         value = self.tab_for_craft.value.value()
         sell_price = self.tab_for_craft.price.value()
@@ -225,14 +225,14 @@ class BaseWindow(QtWidgets.QWidget):
     def may_be_crafted_update(self):
         name = self.tab_may_be_crafted.name.text()
         if len(name) < 5:
-            windo_wrong = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Ошибка",
+            window_wrong = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Ошибка",
                                                 "Заполнены не все поля", buttons=QtWidgets.QMessageBox.Ok,
                                                 parent=self)
-            windo_wrong.exec()
+            window_wrong.exec()
+            return
         item_type = self.tab_may_be_crafted.item_type.currentText()
         min_value = self.tab_may_be_crafted.min_value.value()
         max_value = self.tab_may_be_crafted.max_value.value()
-        sell_price = self.tab_may_be_crafted.price.value()
         cursor = self.connection.cursor()
         sql = """CREATE TABLE IF NOT EXISTS Products (name varchar(20), item_type varchar(15), min_value int,
               max_value int)"""
@@ -240,12 +240,12 @@ class BaseWindow(QtWidgets.QWidget):
         self.connection.commit()
         if self.check_double(name, "Products"):
             if self.double_dialogue():
-                sql = f"UPDATE Products SET min_value = {min_value}, max_value = {max_value}, WHERE name = \"{name}\""
+                sql = f"UPDATE Products SET min_value = {min_value}, max_value = {max_value} WHERE name = \"{name}\""
                 cursor.execute(sql)
                 self.connection.commit()
                 self.tab_may_be_crafted.reset()
-        if self.check_value():
-            if self.double_dialogue():
+        elif self.check_value():
+            if self.double_dialogue(double_type="value"):
                 sql = f"UPDATE Products SET name = \"{name}\", WHERE min_value = {min_value} AND max_value = {max_value}"
                 cursor.execute(sql)
                 self.connection.commit()
@@ -274,10 +274,11 @@ class BaseWindow(QtWidgets.QWidget):
                 filled = False
                 break
         if not filled:
-            windowWrong = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Ошибка",
+            window_wrong = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Ошибка",
                                                 "Заполнены не все поля", buttons=QtWidgets.QMessageBox.Ok,
                                                 parent=self)
-            windowWrong.exec()
+            window_wrong.exec()
+            return
         sql = """CREATE TABLE IF NOT EXISTS Fixed_Recipes (name varchar(20), item_type varchar(15),
                 component_1 varchar(30), component_2 varchar(30), component_3 varchar(30),
                 component_4 varchar(30))"""
@@ -332,16 +333,8 @@ class BaseWindow(QtWidgets.QWidget):
         else:
             return False
 
-    def double_dialogue(self):
-        dialog_window = ItemExistsWindow(parent=self, double_type="name")
-        dialog_window.exec_()
-        if dialog_window.update:
-            return True
-        else:
-            return False
-
-    def double_value(self):
-        dialog_window = ItemExistsWindow(parent=self, double_type="value")
+    def double_dialogue(self, double_type="name"):
+        dialog_window = ItemExistsWindow(parent=self, double_type=double_type)
         dialog_window.exec_()
         if dialog_window.update:
             return True
