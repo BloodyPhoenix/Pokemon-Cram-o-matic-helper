@@ -8,11 +8,15 @@ type_list = ("Нормальный", "Боевой", "Летающий", "Ядо
 
 
 class ItemExistsWindow(QtWidgets.QDialog):
-    def __init__(self, parent):
+    def __init__(self, parent, double_type):
         QtWidgets.QWidget.__init__(self, parent)
         self.setWindowTitle("Существующий предмет")
         main_layout = QtWidgets.QVBoxLayout()
-        text = QtWidgets.QLabel("""Предмет с таким названием уже есть в базе данных.
+        if double_type == "name":
+            text = QtWidgets.QLabel("""Предмет с таким названием уже есть в базе данных.
+Обновить данные?""")
+        else:
+            text = QtWidgets.QLabel("""Предмет с такой ценностью уже есть в базе данных.
 Обновить данные?""")
         main_layout.addWidget(text)
         buttons_layout = QtWidgets.QHBoxLayout()
@@ -77,7 +81,6 @@ class ForCraftLayout(QtWidgets.QWidget):
 
     def reset(self):
         self.name.clear()
-        self.item_type.setCurrentIndex(0)
         self.value.setValue(0)
         self.price.setValue(0)
         self.unique.setCheckState(0)
@@ -98,7 +101,7 @@ class MayBeCraftedLayout(QtWidgets.QWidget):
         self.min_value.setMaximum(141)
         self.min_value.valueChanged.connect(self.change_maximum)
         self.max_value = QtWidgets.QSpinBox()
-        self.max_value.setValue(10)
+        self.max_value.setValue(20)
         self.max_value.valueChanged.connect(self.change_minimum)
         self.max_value.setMaximum(150)
         min_max = QtWidgets.QVBoxLayout()
@@ -122,7 +125,6 @@ class MayBeCraftedLayout(QtWidgets.QWidget):
 
     def reset(self):
         self.name.clear()
-        self.item_type.setCurrentIndex(0)
         self.min_value.setValue(1)
         self.max_value.setValue(10)
         self.price.setValue(0)
@@ -245,8 +247,15 @@ class BaseWindow(QtWidgets.QWidget):
         self.connection.commit()
         if self.check_double(name, "Products"):
             if self.double_dialogue():
-                sql = f"UPDATE Products SET item_type = \"{item_type}\", min_value = {min_value}, " \
-                      f"max_value = {max_value}, sell_price = {sell_price}"
+                sql = f"UPDATE Products SET min_value = {min_value}, max_value = {max_value}, sell_price = {sell_price}" \
+                      f"WHERE name = \"{name}\""
+                cursor.execute(sql)
+                self.connection.commit()
+                self.tab_may_be_crafted.reset()
+        if self.check_value():
+            if self.double_dialogue():
+                sql = f"UPDATE Products SET name = \"{name}\", sell_price = {sell_price}" \
+                      f"WHERE min_value = {min_value} AND max_value = {max_value}"
                 cursor.execute(sql)
                 self.connection.commit()
                 self.tab_may_be_crafted.reset()
@@ -308,14 +317,40 @@ class BaseWindow(QtWidgets.QWidget):
         else:
             sql = f"SELECT EXISTS (SELECT * FROM {table_name} WHERE name = \"{name}\")"
             cursor.execute(sql)
-        if not 0 in cursor.fetchone():
+        if 0 not in cursor.fetchone():
+            return True
+        else:
+            return False
+
+    def check_value(self):
+        cursor = self.connection.cursor()
+        if self.tabs.currentIndex() == 0:
+            value = self.tab_for_craft.value.value()
+            item_type = self.tab_for_craft.item_type.currentText()
+            sql = f"SELECT EXISTS (SELECT * FROM Materials WHERE value = {value} AND item_type = \"{item_type}\")"
+            cursor.execute(sql)
+        else:
+            min_value = self.tab_may_be_crafted.min_value.value()
+            max_value = self.tab_may_be_crafted.max_value.value()
+            item_type = self.tab_may_be_crafted.item_type.currentText()
+            sql = f"SELECT EXISTS (SELECT * FROM Products WHERE min_value = {min_value} AND " \
+                  f"max_value = {max_value} AND item_type = \"{item_type}\")"
+            cursor.execute(sql)
+        if 0 not in cursor.fetchone()
             return True
         else:
             return False
 
     def double_dialogue(self):
-        self.blockSignals(True)
-        dialog_window = ItemExistsWindow(parent=self)
+        dialog_window = ItemExistsWindow(parent=self, double_type="name")
+        dialog_window.exec_()
+        if dialog_window.update:
+            return True
+        else:
+            return False
+
+    def double_value(self):
+        dialog_window = ItemExistsWindow(parent=self, double_type="value")
         dialog_window.exec_()
         if dialog_window.update:
             return True
