@@ -177,18 +177,17 @@ class BaseWindow(QtWidgets.QWidget):
         self.setLayout(main_layout)
 
     def write_into_base(self):
-        with self.connection:
-            if self.tabs.currentIndex() == 0:
-                self.for_craft_update()
-            elif self.tabs.currentIndex() == 1:
-                self.may_be_crafted_update()
-            elif self.tabs.currentIndex() == 2:
-                self.fixed_recipe_update()
-            else:
-                window_wrong = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Ошибка",
-                                                    "Неверный индекс вкладки", buttons=QtWidgets.QMessageBox.Ok,
-                                                    parent=self)
-                window_wrong.exec()
+        if self.tabs.currentIndex() == 0:
+            self.for_craft_update()
+        elif self.tabs.currentIndex() == 1:
+            self.may_be_crafted_update()
+        elif self.tabs.currentIndex() == 2:
+            self.fixed_recipe_update()
+        else:
+            window_wrong = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, "Ошибка",
+                                                 "Неверный индекс вкладки", buttons=QtWidgets.QMessageBox.Ok,
+                                                 parent=self)
+            window_wrong.exec()
 
     def for_craft_update(self):
         name = self.tab_for_craft.name.text()
