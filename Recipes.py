@@ -27,6 +27,13 @@ class NamedLayout(QtWidgets.QVBoxLayout):
         self.addWidget(content)
 
 
+class ResetableComponent(NamedLayout):
+    def __init__(self, label, content, parent=None):
+        NamedLayout.__init__(self, label=label, content=content, parent=parent)
+        self.reset = QtWidgets.QPushButton("Изменить")
+        self.addWidget(self.reset)
+
+
 class RandomRecipe(QtWidgets.QWidget):
     def __init__(self, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
@@ -39,6 +46,47 @@ class CheckRecipe(QtWidgets.QWidget):
         QtWidgets.QWidget.__init__(self, parent)
         main_layout = QtWidgets.QVBoxLayout()
         self.setLayout(main_layout)
+        self.use_unique = QtWidgets.QCheckBox()
+        main_layout.addLayout(LongLabel("Использовать уникальные предметы", self.use_unique))
+        self.item_type = QtWidgets.QComboBox()
+        self.item_type.addItem("Любой")
+        self.item_type.addItems(type_list)
+        main_layout.addLayout(LongLabel("Выберите тип предмета:", self.item_type))
+        self.min_price = QtWidgets.QSpinBox()
+        self.min_price.setMaximum(9999)
+        self.min_price.valueChanged.connect(self.check_max_price)
+        self.max_price = QtWidgets.QSpinBox()
+        self.max_price.setMaximum(10000)
+        self.max_price.valueChanged.connect(self.check_min_price)
+        main_layout.addLayout(LongLabel("Минимальная цена ингридиентов:", self.min_price))
+        main_layout.addLayout(LongLabel("Максимальная цена ингридиентов:", self.max_price))
+        self.part1 = QtWidgets.QComboBox()
+        self.part2 = QtWidgets.QComboBox()
+        self.part3 = QtWidgets.QComboBox()
+        self.part4 = QtWidgets.QComboBox()
+        self.result = QtWidgets.QLineEdit()
+        self.result.setReadOnly(True)
+        self.result.setMinimumWidth(300)
+        self.result.setMaximumWidth(300)
+        grid = QtWidgets.QGridLayout()
+        grid.addLayout(ResetableComponent("Компонент 1", self.part1), 0, 0)
+        grid.addLayout(ResetableComponent("Компонент 2", self.part2), 0, 1)
+        grid.addLayout(ResetableComponent("Компонент 3", self.part3), 1, 0)
+        grid.addLayout(ResetableComponent("Компонент 4", self.part4), 1, 1)
+        grid.addLayout(NamedLayout("Результат:", self.result), 2, 0, 1, 2, QtCore.Qt.AlignHCenter)
+        grid.setHorizontalSpacing(25)
+        grid.setContentsMargins(5, 5, 5, 10)
+        main_layout.addLayout(grid)
+
+    def check_max_price(self):
+        if int(self.min_price.value()) > 0:
+            if self.min_price.value() == self.max_price.value():
+                self.max_price.setValue(self.max_price.value()+1)
+
+    def check_min_price(self):
+        if int(self.min_price.value()) > 0:
+            if self.min_price.value() == self.max_price.value():
+                self.min_price.setValue(self.max_price.value()-1)
 
 
 class FixedRecipe(QtWidgets.QWidget):
