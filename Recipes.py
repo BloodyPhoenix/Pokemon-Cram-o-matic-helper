@@ -1,6 +1,7 @@
 import sys
 import sqlite3
 from PyQt5 import QtWidgets, QtCore
+from random import choice
 
 type_list = ("Нормальный", "Боевой", "Летающий", "Ядовитый", "Земляной", "Каменный", "Насекомый", "Призрачный",
              "Стальной", "Огненный", "Водный", "Травяной", "Электрический", "Психический", "Ледяной", "Драконий",
@@ -39,13 +40,6 @@ class RandomRecipe(QtWidgets.QWidget):
         QtWidgets.QWidget.__init__(self, parent)
         main_layout = QtWidgets.QVBoxLayout()
         self.setLayout(main_layout)
-
-
-class CheckRecipe(QtWidgets.QWidget):
-    def __init__(self, parent=None):
-        QtWidgets.QWidget.__init__(self, parent)
-        main_layout = QtWidgets.QVBoxLayout()
-        self.setLayout(main_layout)
         self.use_unique = QtWidgets.QCheckBox()
         main_layout.addLayout(LongLabel("Использовать уникальные предметы", self.use_unique))
         self.item_type = QtWidgets.QComboBox()
@@ -60,23 +54,25 @@ class CheckRecipe(QtWidgets.QWidget):
         self.max_price.valueChanged.connect(self.check_min_price)
         main_layout.addLayout(LongLabel("Минимальная цена ингридиентов:", self.min_price))
         main_layout.addLayout(LongLabel("Максимальная цена ингридиентов:", self.max_price))
-        self.part1 = QtWidgets.QComboBox()
-        self.part2 = QtWidgets.QComboBox()
-        self.part3 = QtWidgets.QComboBox()
-        self.part4 = QtWidgets.QComboBox()
+        self.components = []
+        for _ in range(0, 4):
+            label = QtWidgets.QLineEdit()
+            label.setMaximumWidth(200)
+            label.setReadOnly(True)
+            self.components.append(label)
         self.result = QtWidgets.QLineEdit()
         self.result.setReadOnly(True)
         self.result.setMinimumWidth(300)
         self.result.setMaximumWidth(300)
         grid = QtWidgets.QGridLayout()
-        grid.addLayout(ResetableComponent("Компонент 1", self.part1), 0, 0)
-        grid.addLayout(ResetableComponent("Компонент 2", self.part2), 0, 1)
-        grid.addLayout(ResetableComponent("Компонент 3", self.part3), 1, 0)
-        grid.addLayout(ResetableComponent("Компонент 4", self.part4), 1, 1)
+        main_layout.addLayout(grid)
+        grid.addLayout(ResetableComponent("Компонент 1:", self.components[0]), 0, 0, alignment=QtCore.Qt.AlignLeft)
+        grid.addLayout(ResetableComponent("Компонент 2:", self.components[1]), 0, 1, alignment=QtCore.Qt.AlignLeft)
+        grid.addLayout(ResetableComponent("Компонент 3:", self.components[2]), 1, 0, alignment=QtCore.Qt.AlignLeft)
+        grid.addLayout(ResetableComponent("Компонент 4:", self.components[3]), 1, 1, alignment=QtCore.Qt.AlignLeft)
         grid.addLayout(NamedLayout("Результат:", self.result), 2, 0, 1, 2, QtCore.Qt.AlignHCenter)
         grid.setHorizontalSpacing(25)
         grid.setContentsMargins(5, 5, 5, 10)
-        main_layout.addLayout(grid)
 
     def check_max_price(self):
         if int(self.min_price.value()) > 0:
@@ -87,6 +83,159 @@ class CheckRecipe(QtWidgets.QWidget):
         if int(self.min_price.value()) > 0:
             if self.min_price.value() == self.max_price.value():
                 self.min_price.setValue(self.max_price.value()-1)
+
+
+class CheckRecipe(QtWidgets.QWidget):
+    def __init__(self, parent=None):
+        self.connection = sqlite3.connect("Pokecraft_Database.db")
+        QtWidgets.QWidget.__init__(self, parent)
+        main_layout = QtWidgets.QVBoxLayout()
+        self.setLayout(main_layout)
+        self.use_unique = QtWidgets.QCheckBox()
+        self.use_unique.stateChanged.connect(self.update_all_names)
+        main_layout.addLayout(LongLabel("Использовать уникальные предметы", self.use_unique))
+        self.items_type = []
+        self.components = []
+        for index in range(1, 5):
+            item_type = QtWidgets.QComboBox()
+            item_type.addItem("Любой")
+            item_type.addItems(type_list)
+            self.items_type.append(item_type)
+            main_layout.addLayout(LongLabel(f"Выберите тип компонента {index}:", item_type))
+        self.min_price = QtWidgets.QComboBox()
+        self.min_price.currentIndexChanged.connect(self.check_max_price)
+        self.max_price = QtWidgets.QComboBox()
+        self.set_prices()
+        self.max_price.currentIndexChanged.connect(self.check_min_price)
+        main_layout.addLayout(LongLabel("Минимальная цена ингридиентов:", self.min_price))
+        main_layout.addLayout(LongLabel("Максимальная цена ингридиентов:", self.max_price))
+        for _ in range(0, 4):
+            name_list = QtWidgets.QComboBox()
+            name_list.setMinimumWidth(250)
+            self.components.append(name_list)
+        self.items_type[0].currentIndexChanged.connect(lambda: self.update_names(0))
+        self.items_type[1].currentIndexChanged.connect(lambda: self.update_names(1))
+        self.items_type[2].currentIndexChanged.connect(lambda: self.update_names(2))
+        self.items_type[3].currentIndexChanged.connect(lambda: self.update_names(3))
+        for index in range(4):
+            self.update_names(index)
+        self.result = QtWidgets.QLineEdit()
+        self.result.setReadOnly(True)
+        self.result.setMinimumWidth(300)
+        self.result.setMaximumWidth(300)
+        grid = QtWidgets.QGridLayout()
+        grid.addLayout(NamedLayout("Компонент 1:", self.components[0]), 0, 0, alignment=QtCore.Qt.AlignLeft)
+        grid.addLayout(NamedLayout("Компонент 2:", self.components[1]), 0, 1, alignment=QtCore.Qt.AlignLeft)
+        grid.addLayout(NamedLayout("Компонент 3:", self.components[2]), 1, 0, alignment=QtCore.Qt.AlignLeft)
+        grid.addLayout(NamedLayout("Компонент 4:", self.components[3]), 1, 1, alignment=QtCore.Qt.AlignLeft)
+        grid.addLayout(NamedLayout("Результат:", self.result), 2, 0, 1, 2, QtCore.Qt.AlignHCenter)
+        grid.setHorizontalSpacing(25)
+        grid.setContentsMargins(5, 5, 5, 10)
+        main_layout.addLayout(grid)
+
+    def set_prices(self):
+        for price in range (0, 2001, 100):
+            self.min_price.addItem(str(price))
+            self.max_price.addItem(str(price))
+        for price in range (3000, 10001, 1000):
+            self.min_price.addItem(str(price))
+            self.max_price.addItem(str(price))
+        price = 20000
+        self.min_price.addItem(str(price))
+        self.max_price.addItem(str(price))
+        self.max_price.setCurrentText(str(price))
+
+    def check_max_price(self):
+        if self.min_price.currentText() == "20000":
+            self.max_price.setCurrentText("20000")
+            self.update_all_names()
+        elif self.min_price.currentIndex() >= self.max_price.currentIndex():
+            if self.min_price.currentIndex() > 0:
+                step = self.max_price.currentIndex()+1
+                self.max_price.setCurrentIndex(step)
+                self.update_all_names()
+
+    def check_min_price(self):
+        if self.max_price.currentText() == "0":
+            self.min_price.setCurrentText("0")
+            self.update_all_names()
+        elif self.min_price.currentIndex() >= self.max_price.currentIndex():
+            if self.max_price.currentText() != "20000":
+                step = self.max_price.currentIndex()-1
+                self.min_price.setCurrentIndex(step)
+                self.update_all_names()
+
+    def update_names(self, index):
+        type_check = self.items_type[index]
+        item_type = type_check.currentText()
+        min_price = int(self.min_price.currentText())
+        max_price = int(self.max_price.currentText())
+        use_uniques = self.use_unique.checkState()
+        self.components[index].clear()
+        with self.connection:
+            cursor = self.connection.cursor()
+            if not item_type == "Любой":
+                if use_uniques == 0:
+                    sql = f"SELECT name FROM Materials WHERE item_type = \"{item_type}\" AND sell_price >= {min_price} " \
+                      f"AND sell_price <= {max_price} AND is_unique = 0 ORDER BY name ASC"
+                else:
+                    sql = f"SELECT name FROM Materials WHERE item_type = \"{item_type}\" AND sell_price >= {min_price} " \
+                      f"AND sell_price <= {max_price} ORDER BY name ASC"
+            else:
+                if use_uniques == 0:
+                    sql = f"SELECT name FROM Materials WHERE sell_price >= {min_price} "\
+                          f"ORDER BY name ASC"
+                else:
+                    sql = f"SELECT name FROM Materials WHERE sell_price >= {min_price} " \
+                          f"ORDER BY name ASC"
+            cursor.execute(sql)
+        for result in cursor.fetchall():
+            self.components[index].addItem(*result)
+        self.update()
+
+    def update_all_names(self):
+        for index in range(4):
+            self.update_names(index)
+            self.update()
+
+    def update_recipe(self):
+        part1 = self.components[0].currentText()
+        part2 = self.components[1].currentText()
+        part3 = self.components[2].currentText()
+        part4 = self.components[3].currentText()
+        parts = [part1, part2, part3, part4]
+        if any(len(part) == 0 for part in parts):
+            return
+        cursor = self.connection.cursor()
+        if part1 == part3 == part4:
+            sql = f"SELECT EXISTS (SELECT * FROM Fixed_Recipes WHERE component_1 = \"{part1}\" AND" \
+                  f" component_3 = \"{part3}\" AND component_4 = \"{part4}\")"
+            cursor.execute(sql)
+            if 0 not in cursor.fetchone():
+                sql = f"SELECT name FROM Fixed_Recipes WHERE component_1 = \"{part1}\""
+                cursor.execute(sql)
+                result = cursor.fetchone()
+                self.result.setReadOnly(False)
+                self.result.setText(*result)
+                self.result.setReadOnly(True)
+                return
+        sql = f"SELECT item_type FROM Materials WHERE name = \"{part1}\""
+        cursor.execute(sql)
+        item_type = str(*cursor.fetchone())
+        value = 0
+        for part in parts:
+            sql = f"SELECT value FROM Materials WHERE name = \"{part}\""
+            cursor.execute(sql)
+            part_value = int(*cursor.fetchone())
+            value += part_value
+        sql = f"SELECT name FROM Products WHERE item_type = \"{item_type}\" AND min_value <= {value} " \
+              f"AND {value} <= max_value"
+        cursor.execute(sql)
+        result = cursor.fetchone()
+        self.result.setReadOnly(False)
+        self.result.setText(*result)
+        self.result.setReadOnly(True)
+        self.update()
 
 
 class FixedRecipe(QtWidgets.QWidget):
@@ -126,7 +275,7 @@ class FixedRecipe(QtWidgets.QWidget):
         with self.connection:
             item_type = self.item_type.currentText()
             cursor = self.connection.cursor()
-            sql = f"SELECT name FROM Fixed_Recipes WHERE item_type = \"{item_type}\""
+            sql = f"SELECT name FROM Fixed_Recipes WHERE item_type = \"{item_type}\" ORDER BY name ASC"
             cursor.execute(sql)
             for result in cursor.fetchall():
                 self.item_name.addItem(*result)
@@ -149,45 +298,90 @@ class FixedRecipe(QtWidgets.QWidget):
 
 class StandartRecipe(QtWidgets.QWidget):
     def __init__(self, parent=None):
+        self.connection = sqlite3.connect("Pokecraft_Database.db")
         QtWidgets.QWidget.__init__(self, parent)
         main_layout = QtWidgets.QVBoxLayout()
         self.setLayout(main_layout)
         self.use_uniques = QtWidgets.QCheckBox()
         main_layout.addLayout(LongLabel("Использовать уникальные предметы", self.use_uniques))
-        self.minimum_sell_price = QtWidgets.QSpinBox()
-        self.minimum_sell_price.setMaximum(999999)
-        self.minimum_sell_price.valueChanged.connect(self.check_maximum)
-        self.maximum_sell_price = QtWidgets.QSpinBox()
-        self.maximum_sell_price.setMaximum(999999)
-        self.maximum_sell_price.valueChanged.connect(self.check_minimum)
-        price_container = QtWidgets.QVBoxLayout()
-        price_container.addWidget(QtWidgets.QLabel("От:"))
-        price_container.addWidget(self.minimum_sell_price)
-        price_container.addWidget(QtWidgets.QLabel("До:"))
-        price_container.addWidget(self.maximum_sell_price)
-        main_layout.addLayout(LongLabel("Цена ингридиетов", price_container))
         self.item_type = QtWidgets.QComboBox()
         self.item_type.addItems(type_list)
-        main_layout.addLayout(LongLabel("Тип предмета", self.item_type))
+        self.item_type.currentIndexChanged.connect(self.update_item_list)
+        main_layout.addLayout(LongLabel("Выберите тип предмета:", self.item_type))
+        self.item_name = QtWidgets.QComboBox()
+        with self.connection:
+            item_type = self.item_type.currentText()
+            cursor = self.connection.cursor()
+            sql = f"SELECT name FROM Fixed_Recipes WHERE item_type = \"{item_type}\" ORDER BY name ASC"
+            cursor.execute(sql)
+            for result in cursor.fetchall():
+                self.item_name.addItem(*result)
+        main_layout.addLayout(LongLabel("Выберите название предмета:", self.item_name))
+        self.min_price = QtWidgets.QSpinBox()
+        self.min_price.setMaximum(9999)
+        self.min_price.valueChanged.connect(self.check_max_price)
+        self.max_price = QtWidgets.QSpinBox()
+        self.max_price.setMaximum(10000)
+        self.max_price.valueChanged.connect(self.check_min_price)
+        main_layout.addLayout(LongLabel("Минимальная цена ингридиентов:", self.min_price))
+        main_layout.addLayout(LongLabel("Максимальная цена ингридиентов:", self.max_price))
         grid = QtWidgets.QGridLayout()
         main_layout.addLayout(grid)
         self.first_part = QtWidgets.QLabel()
         self.second_part = QtWidgets.QLabel()
         self.third_part = QtWidgets.QLabel()
         self.fourth_part = QtWidgets.QLabel()
-        grid.addLayout(NamedLayout("Первый ингридиент:", self.first_part), 0, 0)
-        grid.addLayout(NamedLayout("Второй ингридиент:", self.second_part), 0, 1)
-        grid.addLayout(NamedLayout("Третий ингридиент:", self.third_part), 1, 0)
-        grid.addLayout(NamedLayout("Четвёртый ингридиент:", self.fourth_part), 1, 1)
+        grid.addLayout(ResetableComponent("Первый ингридиент:", self.first_part), 0, 0)
+        grid.addLayout(ResetableComponent("Второй ингридиент:", self.second_part), 0, 1)
+        grid.addLayout(ResetableComponent("Третий ингридиент:", self.third_part), 1, 0)
+        grid.addLayout(ResetableComponent("Четвёртый ингридиент:", self.fourth_part), 1, 1)
 
+    def check_min_price(self):
+        if int(self.min_price.value()) > 0:
+            if self.min_price.value() == self.max_price.value():
+                self.min_price.setValue(self.max_price.value() - 1)
 
-    def check_minimum(self):
-        if self.maximum_sell_price.value() == self.minimum_sell_price.value():
-            self.minimum_sell_price.setValue(int(self.minimum_sell_price.value())-1)
+    def check_max_price(self):
+        if int(self.min_price.value()) > 0:
+            if self.min_price.value() == self.max_price.value():
+                self.max_price.setValue(self.max_price.value() + 1)
 
-    def check_maximum(self):
-        if self.maximum_sell_price.value() == self.minimum_sell_price.value():
-            self.maximum_sell_price.setValue(int(self.maximum_sell_price.value())+1)
+    def update_item_list(self):
+        self.item_name.clear()
+        with self.connection:
+            item_type = self.item_type.currentText()
+            cursor = self.connection.cursor()
+            sql = f"SELECT name FROM Fixed_Recipes WHERE item_type = \"{item_type}\" ORDER BY name ASC"
+            cursor.execute(sql)
+            for result in cursor.fetchall():
+                self.item_name.addItem(*result)
+        self.update()
+
+    def update_recipe(self):
+        with self.connection:
+            cursor = self.connection.cursor()
+            name = self.item_name.currentText()
+            item_type = self.item_type.currentText()
+            use_uniques = self.use_uniques.checkState()
+            if use_uniques == 2:
+                use_uniques = 1
+            sql = f"SELECT min_value FROM Products WHERE name = \"{name}\""
+            cursor.execute(sql)
+            min_value = int(*cursor.fetchone())
+            sql = f"SELECT max_value FROM Products WHERE name = \"{name}\""
+            cursor.execute(sql)
+            max_value = int(*cursor.fetchone())
+            sql = f"SELECT name FROM Materials WHERE item_type = \"{item_type}\" AND is_unique = {use_uniques}"
+            cursor.execute(sql)
+            component1 = choice(self.result_list(cursor.fetchall()))
+
+        self.update()
+
+    def result_list(self, sql_result):
+        list = []
+        for result in sql_result:
+            list.append(*result)
+        return list
 
 
 class BaseWindow(QtWidgets.QWidget):
@@ -217,6 +411,8 @@ class BaseWindow(QtWidgets.QWidget):
     def show_recipe(self):
         if self.tabs.currentIndex() == 1:
             self.fixed_recipe_tab.update_recipe()
+        elif self.tabs.currentIndex() == 3:
+            self.check_recipe_tab.update_recipe()
 
 
 
