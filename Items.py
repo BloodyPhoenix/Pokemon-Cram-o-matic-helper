@@ -119,17 +119,17 @@ class MayBeCraftedLayout(QtWidgets.QWidget):
 
     def reset(self):
         self.name.clear()
-        if int(self.min_value.value()) == 1:
-            self.min_value.setValue(21)
-            self.max_value.setValue(30)
-        elif int(self.min_value.value()) <= 111:
-            new_min_value = int(self.min_value.value()) + 10
-            self.min_value.setValue(new_min_value)
-            self.max_value.setValue(new_min_value+9)
-        else:
-            new_min_value = 1
-            self.min_value.setValue(new_min_value)
-            self.max_value.setValue(20)
+        #if int(self.min_value.value()) == 1:
+         #   self.min_value.setValue(21)
+         #   self.max_value.setValue(30)
+       # elif int(self.min_value.value()) <= 111:
+       #     new_min_value = int(self.min_value.value()) + 10
+       #     self.min_value.setValue(new_min_value)
+      #      self.max_value.setValue(new_min_value+9)
+      #  else:
+       #     new_min_value = 1
+       #     self.min_value.setValue(new_min_value)
+        #    self.max_value.setValue(20)
         
         
 
@@ -256,7 +256,8 @@ class BaseWindow(QtWidgets.QWidget):
                 self.tab_may_be_crafted.reset()
         elif self.check_value():
             if self.double_dialogue(double_type="value"):
-                sql = f"UPDATE Products SET name = \"{name}\" WHERE min_value = {min_value} AND max_value = {max_value}"
+                sql = f"UPDATE Products SET name = \"{name}\" WHERE min_value = {min_value} " \
+                      f"AND max_value = {max_value} AND item_type = \"{item_type}\""
                 cursor.execute(sql)
                 self.connection.commit()
                 self.tab_may_be_crafted.reset()
