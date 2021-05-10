@@ -260,10 +260,10 @@ class CheckRecipe(QtWidgets.QWidget):
         self.result.setMinimumWidth(300)
         self.result.setMaximumWidth(300)
         grid = QtWidgets.QGridLayout()
-        grid.addLayout(NamedLayout("Компонент 1:", self.components[0]), 0, 0, alignment=QtCore.Qt.AlignLeft)
-        grid.addLayout(NamedLayout("Компонент 2:", self.components[1]), 0, 1, alignment=QtCore.Qt.AlignLeft)
-        grid.addLayout(NamedLayout("Компонент 3:", self.components[2]), 1, 0, alignment=QtCore.Qt.AlignLeft)
-        grid.addLayout(NamedLayout("Компонент 4:", self.components[3]), 1, 1, alignment=QtCore.Qt.AlignLeft)
+        grid.addLayout(NamedLayout("Компонент 1", self.components[0]), 0, 0, alignment=QtCore.Qt.AlignLeft)
+        grid.addLayout(NamedLayout("Компонент 2", self.components[1]), 0, 1, alignment=QtCore.Qt.AlignLeft)
+        grid.addLayout(NamedLayout("Компонент 3", self.components[2]), 1, 0, alignment=QtCore.Qt.AlignLeft)
+        grid.addLayout(NamedLayout("Компонент 4", self.components[3]), 1, 1, alignment=QtCore.Qt.AlignLeft)
         grid.addLayout(NamedLayout("Результат:", self.result), 2, 0, 1, 2, QtCore.Qt.AlignHCenter)
         grid.setHorizontalSpacing(25)
         grid.setContentsMargins(5, 5, 5, 10)
@@ -399,10 +399,10 @@ class FixedRecipe(QtWidgets.QWidget):
         grid.addWidget(self.item_type, 0, 1, alignment=QtCore.Qt.AlignLeft)
         grid.addWidget(QtWidgets.QLabel("Выберите название предмета:"), 1, 0, alignment=QtCore.Qt.AlignLeft)
         grid.addWidget(self.item_name, 1, 1, alignment=QtCore.Qt.AlignLeft)
-        grid.addLayout(NamedLayout("Компонент 1:", self.components[0]), 2, 0, alignment=QtCore.Qt.AlignLeft)
-        grid.addLayout(NamedLayout("Компонент 2:", self.components[1]), 2, 1, alignment=QtCore.Qt.AlignLeft)
-        grid.addLayout(NamedLayout("Компонент 3:", self.components[2]), 3, 0, alignment=QtCore.Qt.AlignLeft)
-        grid.addLayout(NamedLayout("Компонент 4:", self.components[3]), 3, 1, alignment=QtCore.Qt.AlignLeft)
+        grid.addLayout(NamedLayout("Компонент 1", self.components[0]), 2, 0, alignment=QtCore.Qt.AlignLeft)
+        grid.addLayout(NamedLayout("Компонент 2", self.components[1]), 2, 1, alignment=QtCore.Qt.AlignLeft)
+        grid.addLayout(NamedLayout("Компонент 3", self.components[2]), 3, 0, alignment=QtCore.Qt.AlignLeft)
+        grid.addLayout(NamedLayout("Компонент 4", self.components[3]), 3, 1, alignment=QtCore.Qt.AlignLeft)
         grid.setContentsMargins(10, 25, 10, 100)
         grid.setVerticalSpacing(20)
 
@@ -536,42 +536,49 @@ class StandartRecipe(QtWidgets.QWidget):
             min_price = int(self.min_price.currentText())
             max_price = int(self.max_price.currentText())
             use_unique = self.use_uniques.checkState()
-            sql = f"SELECT max_value FROM Products WHERE name = \"{name}\""
+            sql = f"SELECT max_value, min_value FROM Products WHERE name = \"{name}\""
             cursor.execute(sql)
-            max_value = int(*cursor.fetchone())
-            if use_unique == 0:
+            max_value, min_value = list(cursor.fetchone())
+            for _ in range(1000):
+                result = None
                 sql = f"SELECT name, value FROM Materials WHERE item_type = \"{item_type}\" AND value <= {max_value} " \
-                      f"AND is_unique = 0 AND {min_price} <= sell_price AND sell_price <= {max_price}"
-            else:
-                sql = f"SELECT name, value FROM Materials WHERE item_type = \"{item_type}\" AND value <= {max_value} " \
-                      f"AND {min_price} <= sell_price AND sell_price <= {max_price}"
-            cursor.execute(sql)
-            try:
-                component1 = choice(cursor.fetchall())
-            except:
-                self.show_request_error()
-                return
-            components = [component1[0]]
-            max_value -= component1[1]
-            for _ in range(3):
-                if use_unique == 0:
-                    sql = f"SELECT name, value FROM Materials WHERE value <= {max_value} AND is_unique = 0 " \
+                      f"AND is_unique = {use_unique} AND {min_price} <= sell_price AND sell_price <= {max_price}"
+                cursor.execute(sql)
+                try:
+                    component1 = choice(cursor.fetchall())
+                except:
+                    continue
+                result = [component1[0]]
+                max_value -= component1[1]
+                min_value -= component1[1]
+                for _ in range(2):
+                    sql = f"SELECT name, value FROM Materials WHERE value <= {max_value} AND is_unique = {use_unique} " \
                           f"AND {min_price} <= sell_price AND sell_price <= {max_price}"
-                else:
-                    sql = f"SELECT name, value FROM Materials WHERE value <= {max_value} " \
-                          f"AND {min_price} <= sell_price AND sell_price <= {max_price}"
+                    cursor.execute(sql)
+                    try:
+                        component = choice(cursor.fetchall())
+                    except:
+                        continue
+                    result.append(component[0])
+                    max_value -= component[1]
+                    min_value -= component[1]
+                sql = f"SELECT name, value FROM Materials WHERE {min_value} <= value AND value <= {max_value} " \
+                      f"AND is_unique = {use_unique} AND {min_price} <= sell_price AND sell_price <= {max_price} "
                 cursor.execute(sql)
                 try:
                     component = choice(cursor.fetchall())
                 except:
-                    self.show_request_error()
-                    return
-                components.append(component[0])
-                max_value -= component[1]
-            for index in range(4):
-                self.components[index].setReadOnly(False)
-                self.components[index].setText(str(components[index]))
-                self.components[index].setReadOnly(True)
+                    continue
+                result.append(component[0])
+                if len(result) == 4:
+                    break
+            if len(result) == 4:
+                for index in range(4):
+                    self.components[index].setReadOnly(False)
+                    self.components[index].setText(str(result[index]))
+                    self.components[index].setReadOnly(True)
+            else:
+                self.show_request_error()
         self.update()
 
     def show_request_error(self):
@@ -685,7 +692,7 @@ Pearl String) могут встречаться в нескольких типа
 
 Чтобы включить его, посставьте галочку в соответствующем поле нажатием мыши.
 
-Выбор этой опции в одной из влкадок не влияет на остальные"""
+Выбор этой опции в одной из вкладок не влияет на остальные"""
         self.addItem(QtWidgets.QLabel(use_unique_text), "Использование уникальных предметов")
         show_recipe_text = """Кнопка "Показать рецепт" работает немного по-разному в зависимости от вкладки.
         
