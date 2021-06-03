@@ -784,7 +784,9 @@ class BaseWindow(QtWidgets.QWidget):
             self.standart_recipe_type.update_recipe()
 
 
-app = QtWidgets.QApplication(sys.argv)
-window = BaseWindow()
-window.show()
-sys.exit(app.exec_())
+if __name__ == "__main__":
+    app = QtWidgets.QApplication(sys.argv)
+    window = BaseWindow()
+    window.show()
+    sys.exit(app.exec_())
+
