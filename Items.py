@@ -353,8 +353,10 @@ class BaseWindow(QtWidgets.QWidget):
             return False
 
 
-app = QtWidgets.QApplication(sys.argv)
-window = BaseWindow()
-window.show()
-sys.exit(app.exec_())
+if __name__ == "__main__":
+    app = QtWidgets.QApplication(sys.argv)
+    window = BaseWindow()
+    window.show()
+    sys.exit(app.exec_())
+
 
